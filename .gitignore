@@ -28,3 +28,7 @@ npm-debug.log*
 # Build outputs
 frontend/build/
 dist/
+
+# Repo Git lồng nhau (tránh đẩy nhầm)
+fashionhub/
+demo/
