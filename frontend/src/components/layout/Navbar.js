@@ -19,10 +19,10 @@ function Navbar() {
       <Link to="/" className={styles.logo}>FashionHub</Link>
 
       <div className={styles.links}>
-        <Link to="/products?category=nam">Nam</Link>
-        <Link to="/products?category=nu">Nữ</Link>
-        <Link to="/products?category=tre-em">Trẻ em</Link>
-        <Link to="/products?sort=discount">Sale</Link>
+        <Link to="/products?category_id=1">Nam</Link>
+        <Link to="/products?category_id=3">Nữ</Link>
+        <Link to="/products">Tất cả</Link>
+        <Link to="/products?sort=price_asc">Sale</Link>
       </div>
 
       <div className={styles.searchBar}>
@@ -46,13 +46,12 @@ function Navbar() {
           <>
             <span>Xin chào, {user.name}</span>
             {user.role === 'admin' && (
-              <div className={styles.adminLinks}>
-                <Link to="/admin/products">Sản phẩm</Link>
-                <Link to="/admin/categories">Danh mục</Link>
-                <Link to="/admin/orders">Đơn hàng</Link>
-                <Link to="/admin/users-manage">👥 Người dùng</Link>
-                <Link to="/admin/users">🚫 Bom hàng</Link>
-              </div>
+              <Link to="/admin/orders" style={{
+                background: '#1a1d20', color: '#38ef7d', padding: '6px 12px',
+                borderRadius: 4, textDecoration: 'none', fontWeight: 'bold', fontSize: 12
+              }}>
+                ⚙️ Trang Admin
+              </Link>
             )}
             <button onClick={handleLogout} className={styles.logoutBtn}>
               Đăng xuất

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getProductById } from '../api/productApi';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 const COLORS = ['Đen', 'Trắng', 'Xanh navy', 'Be'];
@@ -9,6 +10,8 @@ const COLORS = ['Đen', 'Trắng', 'Xanh navy', 'Be'];
 function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
@@ -27,11 +30,26 @@ function ProductDetailPage() {
   }, [id, navigate]);
 
   const handleAddToCart = () => {
+    if (!user) {
+      return navigate('/login', { state: { from: location } });
+    }
     if (!selectedSize) return setMsg('Vui lòng chọn size');
     if (!selectedColor) return setMsg('Vui lòng chọn màu');
+    if (product.stock <= 0) return setMsg('Sản phẩm đã hết hàng');
     addToCart(product, qty, selectedSize, selectedColor);
     setMsg('✓ Đã thêm vào giỏ hàng');
     setTimeout(() => setMsg(''), 2000);
+  };
+
+  const handleBuyNow = () => {
+    if (!user) {
+      return navigate('/login', { state: { from: location } });
+    }
+    if (!selectedSize) return setMsg('Vui lòng chọn size');
+    if (!selectedColor) return setMsg('Vui lòng chọn màu');
+    if (product.stock <= 0) return setMsg('Sản phẩm đã hết hàng');
+    addToCart(product, qty, selectedSize, selectedColor);
+    navigate('/checkout');
   };
 
   if (loading) return <div style={{ padding: 60, textAlign: 'center' }}>Đang tải...</div>;
@@ -49,11 +67,15 @@ function ProductDetailPage() {
       {/* Ảnh */}
       <div style={{ width: 480, flexShrink: 0 }}>
         <img src={images[activeImg]?.image_url} alt={product.name}
-          style={{ width: '100%', height: 560, objectFit: 'cover', background: '#f5f5f5' }} />
+          style={{ width: '100%', height: 560, objectFit: 'cover', background: '#f5f5f5' }}
+          onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://placehold.co/480x560/f5f5f5/333?text=No+Image'; }}
+        />
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           {images.map((img, i) => (
             <img key={i} src={img.image_url} alt="" onClick={() => setActiveImg(i)}
-              style={{ width: 70, height: 80, objectFit: 'cover', cursor: 'pointer', border: i === activeImg ? '2px solid #000' : '1px solid #ddd' }} />
+              style={{ width: 70, height: 80, objectFit: 'cover', cursor: 'pointer', border: i === activeImg ? '2px solid #000' : '1px solid #ddd' }}
+              onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = 'https://placehold.co/70x80/f5f5f5/333?text=X'; }}
+            />
           ))}
         </div>
       </div>
@@ -115,7 +137,32 @@ function ProductDetailPage() {
         {/* Số lượng */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <button disabled={isOutOfStock} onClick={() => setQty(Math.max(1, qty - 1))} style={{ width: 36, height: 36, border: '1px solid #ccc', background: '#fff', fontSize: 18, cursor: isOutOfStock ? 'not-allowed' : 'pointer', opacity: isOutOfStock ? 0.5 : 1 }}>−</button>
-          <span style={{ width: 36, textAlign: 'center', fontWeight: 'bold' }}>{qty}</span>
+          <input
+            type="number"
+            min="1"
+            max={product.stock}
+            value={qty}
+            disabled={isOutOfStock}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              if (isNaN(val) || val < 1) {
+                setQty(1);
+              } else if (val > product.stock) {
+                setQty(product.stock);
+              } else {
+                setQty(val);
+              }
+            }}
+            onBlur={() => {
+              if (qty < 1) setQty(1);
+              if (qty > product.stock) setQty(product.stock);
+            }}
+            style={{
+              width: 60, textAlign: 'center', fontWeight: 'bold', fontSize: 15,
+              padding: '6px 4px', border: '1px solid #ccc', borderRadius: 4,
+              MozAppearance: 'textfield', boxSizing: 'border-box'
+            }}
+          />
           <button disabled={isOutOfStock || qty >= product.stock} onClick={() => setQty(qty + 1)} style={{ width: 36, height: 36, border: '1px solid #ccc', background: '#fff', fontSize: 18, cursor: (isOutOfStock || qty >= product.stock) ? 'not-allowed' : 'pointer', opacity: (isOutOfStock || qty >= product.stock) ? 0.5 : 1 }}>+</button>
           {!isOutOfStock && <span style={{ fontSize: 12, color: '#666' }}>({product.stock} sản phẩm có sẵn)</span>}
         </div>
@@ -128,12 +175,7 @@ function ProductDetailPage() {
             style={{ flex: 1, padding: '14px', background: isOutOfStock ? '#f5f5f5' : '#fff', color: isOutOfStock ? '#999' : '#000', border: isOutOfStock ? '1px solid #ccc' : '1px solid #000', fontWeight: 'bold', fontSize: 13, cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}>
             {isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
           </button>
-          <button disabled={isOutOfStock} onClick={() => {
-            if (!selectedSize) return setMsg('Vui lòng chọn size');
-            if (!selectedColor) return setMsg('Vui lòng chọn màu');
-            addToCart(product, qty, selectedSize, selectedColor);
-            navigate('/checkout');
-          }}
+          <button disabled={isOutOfStock} onClick={handleBuyNow}
             style={{ flex: 1, padding: '14px', background: isOutOfStock ? '#ccc' : '#000', color: '#fff', border: 'none', fontWeight: 'bold', fontSize: 13, cursor: isOutOfStock ? 'not-allowed' : 'pointer' }}>
             {isOutOfStock ? 'Hết hàng' : 'Mua ngay'}
           </button>

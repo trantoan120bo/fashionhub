@@ -30,13 +30,13 @@ INSERT INTO
 VALUES (
         N'FashionHub Admin',
         'admin@fashionhub.com',
-        '$2a$10$FH7KcGpepGp1fpj2oqpiseQmmabtwm/.IrUU3KVODaizSuaoz8B9GW',
+        '$2a$10$yKI8noh4icaqsCTRAWGsHOrjOeURSRY.XeIvPcyAAS25gLOkedy.2',
         'admin'
     ),
     (
         N'Nguyễn Văn An',
         'an@example.com',
-        '$2a$10$FH7KcGpepGp1fpj2oqpiseQmmabtwm/.IrUU3KVODaizSuaoz8B9GW',
+        '$2a$10$yKI8noh4icaqsCTRAWGsHOrjOeURSRY.XeIvPcyAAS25gLOkedy.2',
         'customer'
     );
 

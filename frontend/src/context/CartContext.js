@@ -1,23 +1,39 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
-  const [cartItems, setCartItems] = useState(() => {
-    // Khôi phục giỏ hàng từ localStorage khi reload
-    try {
-      return JSON.parse(localStorage.getItem('cart')) || [];
-    } catch {
-      return [];
-    }
-  });
+  const { user } = useAuth();
+  const [cartItems, setCartItems] = useState([]);
 
-  // Đồng bộ giỏ hàng vào localStorage mỗi khi thay đổi
+  // Tự động load/reset giỏ hàng theo User ID
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cartItems));
-  }, [cartItems]);
+    // Dọn dẹp key cũ không gán user
+    localStorage.removeItem('cart');
+
+    if (user && user.id) {
+      try {
+        const userCart = localStorage.getItem(`cart_user_${user.id}`);
+        setCartItems(userCart ? JSON.parse(userCart) : []);
+      } catch {
+        setCartItems([]);
+      }
+    } else {
+      // Khi chưa đăng nhập hoặc đã đăng xuất -> Giỏ hàng trống
+      setCartItems([]);
+    }
+  }, [user]);
+
+  // Đồng bộ giỏ hàng theo User ID vào localStorage
+  useEffect(() => {
+    if (user && user.id) {
+      localStorage.setItem(`cart_user_${user.id}`, JSON.stringify(cartItems));
+    }
+  }, [cartItems, user]);
 
   const addToCart = (product, quantity = 1, size = 'M', color = 'Đen') => {
+    if (!user) return false;
     setCartItems((prev) => {
       const key = `${product.id}-${size}-${color}`;
       const existing = prev.find((i) => i.key === key);
@@ -37,10 +53,11 @@ export function CartProvider({ children }) {
         color
       }];
     });
+    return true;
   };
 
   const updateQuantity = (key, quantity) => {
-    if (quantity < 1) return; // Không cho giảm xuống dưới 1, không xoá sản phẩm
+    if (quantity < 1) return;
     setCartItems((prev) =>
       prev.map((i) => (i.key === key ? { ...i, qty: quantity } : i))
     );
@@ -50,17 +67,25 @@ export function CartProvider({ children }) {
     setCartItems((prev) => prev.filter((i) => i.key !== key));
   };
 
-  const clearCart = () => setCartItems([]);
+  const clearCart = () => {
+    setCartItems([]);
+    if (user && user.id) {
+      localStorage.removeItem(`cart_user_${user.id}`);
+    }
+  };
 
-  const totalItems = cartItems.reduce((sum, i) => sum + i.qty, 0);
-  const totalPrice = cartItems.reduce(
-    (sum, i) => sum + i.price * i.qty, 0
-  );
+  const totalItems = user ? cartItems.reduce((sum, i) => sum + i.qty, 0) : 0;
+  const totalPrice = user ? cartItems.reduce((sum, i) => sum + i.price * i.qty, 0) : 0;
 
   return (
     <CartContext.Provider value={{
-      cartItems, addToCart, updateQuantity, removeFromCart, clearCart,
-      totalItems, totalPrice,
+      cartItems: user ? cartItems : [],
+      addToCart,
+      updateQuantity,
+      removeFromCart,
+      clearCart,
+      totalItems,
+      totalPrice,
     }}>
       {children}
     </CartContext.Provider>

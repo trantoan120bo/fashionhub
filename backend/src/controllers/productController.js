@@ -1,91 +1,145 @@
-const pool = require('../config/database');
+const Product = require('../models/Product');
+const Category = require('../models/Category');
 
 exports.getProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 12, category_id, sort = 'newest' } = req.query;
-    const offset = (page - 1) * limit;
+    const { page = 1, limit = 12, category_id, sort = 'newest', search } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
 
-    let orderBy = 'p.id DESC';
-    if (sort === 'price_asc') orderBy = 'p.price ASC';
-    if (sort === 'price_desc') orderBy = 'p.price DESC';
+    const query = {};
 
-    let where = 'WHERE 1=1';
-    const params = [];
-    if (category_id) { where += ' AND p.category_id = ?'; params.push(category_id); }
-    if (req.query.search) {
-      where += " AND p.name LIKE ?";
-      params.push(`%${req.query.search}%`);
+    if (category_id && category_id !== '' && !isNaN(Number(category_id))) {
+      query.category_id = Number(category_id);
     }
 
-    const [products] = await pool.query(`
-      SELECT p.*, c.name AS category_name, img.image_url AS main_image
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      OUTER APPLY (
-        SELECT TOP 1 image_url FROM product_images
-        WHERE product_id = p.id ORDER BY is_primary DESC
-      ) img
-      ${where} ORDER BY ${orderBy} OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
-    `, [...params, Number(offset), Number(limit)]);
+    if (search) {
+      query.name = { $regex: search, $options: 'i' };
+    }
 
-    const [countRows] = await pool.query(`SELECT COUNT(*) AS total FROM products p ${where}`, params);
-    const total = countRows[0]?.total || 0;
+    let sortOptions = { id: -1 };
+    if (sort === 'price_asc') sortOptions = { price: 1 };
+    if (sort === 'price_desc') sortOptions = { price: -1 };
 
-    res.json({ products: products.map(p => ({ ...p, images: p.main_image ? [{ image_url: p.main_image }] : [] })), total, page: Number(page) });
-  } catch (err) { console.error(err); res.status(500).json({ message: 'Lỗi server' }); }
+    const total = await Product.countDocuments(query);
+    const rawProducts = await Product.find(query)
+      .sort(sortOptions)
+      .skip(offset)
+      .limit(Number(limit))
+      .lean();
+
+    const categoryIds = [...new Set(rawProducts.map(p => p.category_id).filter(Boolean))];
+    const categories = await Category.find({ id: { $in: categoryIds } }).lean();
+    const categoryMap = {};
+    categories.forEach(c => { categoryMap[c.id] = c.name; });
+
+    const products = rawProducts.map(p => {
+      const primaryImg = p.images && p.images.length > 0 ? (p.images.find(img => img.is_primary) || p.images[0]).image_url : null;
+      return {
+        ...p,
+        category_name: categoryMap[p.category_id] || '',
+        main_image: primaryImg,
+        images: primaryImg ? [{ image_url: primaryImg }] : (p.images || [])
+      };
+    });
+
+    res.json({ products, total, page: Number(page) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
 };
 
 exports.getProductById = async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = ?',
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
-    const product = rows[0];
-    const [images] = await pool.query('SELECT * FROM product_images WHERE product_id = ? ORDER BY is_primary DESC', [product.id]);
-    res.json({ product: { ...product, images } });
-  } catch (err) { console.error(err); res.status(500).json({ message: 'Lỗi server' }); }
+    const product = await Product.findOne({ id: Number(req.params.id) }).lean();
+    if (!product) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+
+    let category_name = '';
+    if (product.category_id) {
+      const cat = await Category.findOne({ id: product.category_id });
+      if (cat) category_name = cat.name;
+    }
+
+    res.json({
+      product: {
+        ...product,
+        category_name,
+        images: product.images || []
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
 };
 
 exports.createProduct = async (req, res) => {
   try {
     const { name, category_id, price, original_price, description, stock, image_url } = req.body;
     if (!name || !price) return res.status(400).json({ message: 'Thiếu tên hoặc giá sản phẩm' });
-    const [rows, extra] = await pool.query(
-      'INSERT INTO products (name, category_id, price, original_price, description, stock) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, category_id || null, price, original_price || null, description || '', stock || 0]
-    );
-    const productId = extra.insertId;
 
-    if (image_url && productId) {
-      await pool.query('INSERT INTO product_images (product_id, image_url, is_primary) VALUES (?, ?, 1)', [productId, image_url]);
-    }
+    const maxProduct = await Product.findOne().sort('-id');
+    const productId = maxProduct && maxProduct.id ? maxProduct.id + 1 : 1;
+
+    const images = image_url ? [{ id: 1, image_url, is_primary: true }] : [];
+
+    await Product.create({
+      id: productId,
+      name,
+      category_id: category_id ? Number(category_id) : null,
+      price: Number(price),
+      original_price: original_price ? Number(original_price) : null,
+      description: description || '',
+      stock: stock ? Number(stock) : 0,
+      images
+    });
+
     res.status(201).json({ message: 'Tạo sản phẩm thành công', product_id: productId });
-  } catch (err) { console.error(err); res.status(500).json({ message: 'Lỗi server' }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
 };
 
 exports.updateProduct = async (req, res) => {
   try {
     const { name, category_id, price, original_price, description, stock, image_url } = req.body;
-    const { id } = req.params;
-    await pool.query(
-      'UPDATE products SET name=?, category_id=?, price=?, original_price=?, description=?, stock=? WHERE id=?',
-      [name, category_id || null, price, original_price || null, description || '', stock || 0, id]
-    );
+    const productId = Number(req.params.id);
+
+    const product = await Product.findOne({ id: productId });
+    if (!product) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+
+    product.name = name;
+    product.category_id = category_id ? Number(category_id) : null;
+    product.price = Number(price);
+    product.original_price = original_price ? Number(original_price) : null;
+    product.description = description || '';
+    product.stock = stock ? Number(stock) : 0;
+    product.updated_at = new Date();
+
     if (image_url) {
-      const [imgs] = await pool.query('SELECT id FROM product_images WHERE product_id=? AND is_primary=1', [id]);
-      if (imgs.length) await pool.query('UPDATE product_images SET image_url=? WHERE id=?', [image_url, imgs[0].id]);
-      else await pool.query('INSERT INTO product_images (product_id, image_url, is_primary) VALUES (?,?,1)', [id, image_url]);
+      if (product.images && product.images.length > 0) {
+        product.images[0].image_url = image_url;
+        product.images[0].is_primary = true;
+      } else {
+        product.images = [{ id: 1, image_url, is_primary: true }];
+      }
     }
+
+    await product.save();
     res.json({ message: 'Cập nhật thành công' });
-  } catch (err) { console.error(err); res.status(500).json({ message: 'Lỗi server' }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
 };
 
 exports.deleteProduct = async (req, res) => {
   try {
-    await pool.query('DELETE FROM product_images WHERE product_id=?', [req.params.id]);
-    await pool.query('DELETE FROM products WHERE id=?', [req.params.id]);
+    await Product.deleteOne({ id: Number(req.params.id) });
     res.json({ message: 'Xóa thành công' });
-  } catch (err) { console.error(err); res.status(500).json({ message: 'Lỗi server' }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Lỗi server' });
+  }
 };

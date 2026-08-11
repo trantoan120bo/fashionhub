@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  let url = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+  if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    url = url.replace('localhost', window.location.hostname).replace('127.0.0.1', window.location.hostname);
+  }
+  return url;
+};
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  baseURL: getBaseURL(),
   timeout: 10000,
 });
 
@@ -12,11 +20,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Xử lý lỗi 401 toàn cục (token hết hạn)
+// Xử lý lỗi 401 toàn cục (token hết hạn), ngoại trừ endpoint đăng nhập /auth/login
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }

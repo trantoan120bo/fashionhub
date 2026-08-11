@@ -74,24 +74,34 @@ function HomePage() {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 30 }}>
-            {categories.slice(0, 4).map((cat, i) => (
-              <Link key={cat.id} to={`/products?category_id=${cat.id}`} style={{ position: 'relative', height: 400, overflow: 'hidden' }}>
-                <img
-                  src={`https://images.unsplash.com/photo-${1500000000000 + i * 100000}?w=600&q=80`}
-                  alt={cat.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', transition: '0.5s' }}
-                  onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                  onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-                />
-                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, width: '100%', padding: 30,
-                  background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', color: '#fff'
-                }}>
-                  <h3 style={{ fontSize: 20, fontWeight: 700 }}>{cat.name}</h3>
-                  <span style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Explore Collection</span>
-                </div>
-              </Link>
-            ))}
+            {categories.slice(0, 4).map((cat, i) => {
+              const catImages = [
+                'https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?w=600&q=80', // Áo Nam
+                'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&q=80', // Quần Nam
+                'https://images.unsplash.com/photo-1485518882345-15568b007407?w=600&q=80', // Áo Nữ
+                'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&q=80', // Quần Nữ
+                'https://images.unsplash.com/photo-1560343090-f0409e92791a?w=600&q=80', // Phụ Kiện
+              ];
+              return (
+                <Link key={cat.id} to={`/products?category_id=${cat.id}`} style={{ position: 'relative', height: 400, overflow: 'hidden', display: 'block' }}>
+                  <img
+                    src={catImages[i] || catImages[0]}
+                    alt={cat.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s' }}
+                    onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onError={e => { e.currentTarget.src = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=600&q=80'; }}
+                  />
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, width: '100%', padding: 30,
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', color: '#fff'
+                  }}>
+                    <h3 style={{ fontSize: 20, fontWeight: 700 }}>{cat.name}</h3>
+                    <span style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Khám phá bộ sưu tập</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
 

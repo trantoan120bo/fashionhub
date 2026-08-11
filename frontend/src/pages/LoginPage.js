@@ -3,20 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { login } from '../api/authApi';
 import { useAuth } from '../context/AuthContext';
 
-function SocialButton({ label, bgColor, textColor, border, onClick, icon }) {
-  return (
-    <button onClick={onClick} type="button"
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-        width: '100%', padding: '11px', border: border || 'none',
-        background: bgColor, color: textColor, fontWeight: 'bold', fontSize: 14,
-        cursor: 'pointer', marginBottom: 12, boxSizing: 'border-box'
-      }}>
-      {icon}
-      {label}
-    </button>
-  );
-}
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function LoginPage() {
   const { loginUser } = useAuth();
@@ -26,31 +13,37 @@ function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); setError('');
-    try {
-      const res = await login(form.email, form.password);
-      loginUser(res.data.token, res.data.user);
-      navigate(from, { replace: true });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Đăng nhập thất bại');
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError('');
 
-  const handleMockOAuth = async (provider) => {
-    setLoading(true); setError('');
+    const email = form.email.trim().toLowerCase();
+    const password = form.password.trim();
+
+    // Validate email format
+    if (!email) {
+      return setError('Vui lòng nhập email');
+    }
+    if (!emailRegex.test(email)) {
+      return setError('Email không đúng định dạng. Ví dụ: ten@email.com');
+    }
+    if (!password) {
+      return setError('Vui lòng nhập mật khẩu');
+    }
+
+    setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/${provider}/mock`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      loginUser(data.token, data.user);
-      navigate(from, { replace: true });
+      const res = await login(email, password);
+      loginUser(res.data.token, res.data.user);
+      if (res.data.user?.role === 'admin') {
+        navigate('/admin/orders', { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
     } catch (err) {
-      setError(err.message || `Đăng nhập ${provider} thất bại`);
+      setError(err.response?.data?.message || 'Email hoặc mật khẩu không chính xác');
     } finally {
       setLoading(false);
     }
@@ -60,57 +53,87 @@ function LoginPage() {
     <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 20px' }}>
       <div style={{ width: 400 }}>
         <h2 style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 22, marginBottom: 32 }}>Đăng nhập</h2>
+        
+        {error && (
+          <div style={{
+            background: '#fdf2f2',
+            border: '1px solid #f8b4b4',
+            color: '#9b1c1c',
+            padding: '12px 14px',
+            borderRadius: 6,
+            fontSize: 13,
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            animation: 'fadeIn 0.3s ease'
+          }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+            <span style={{ lineHeight: 1.4 }}>{error}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          {[['email', 'Email', 'email'], ['password', 'Mật khẩu', 'password']].map(([name, label, type]) => (
-            <div key={name} style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 13, marginBottom: 6, fontWeight: 'bold' }}>{label}</label>
-              <input type={type} value={form[name]} onChange={(e) => setForm({ ...form, [name]: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #ccc', fontSize: 14, boxSizing: 'border-box' }} />
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 13, marginBottom: 6, fontWeight: 'bold' }}>Email</label>
+            <input
+              type="text"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="Nhập email của bạn"
+              autoComplete="email"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #ccc', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 13, marginBottom: 6, fontWeight: 'bold' }}>Mật khẩu</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Nhập mật khẩu"
+                autoComplete="current-password"
+                style={{ width: '100%', padding: '10px 40px 10px 12px', border: '1px solid #ccc', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 4,
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {showPassword ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                  </svg>
+                )}
+              </button>
             </div>
-          ))}
-          {error && <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</p>}
+          </div>
           <button type="submit" disabled={loading}
-            style={{ width: '100%', padding: '12px', background: '#000', color: '#fff', fontWeight: 'bold', fontSize: 14, border: 'none', cursor: 'pointer', marginBottom: 16 }}>
+            style={{ width: '100%', padding: '12px', background: '#000', color: '#fff', fontWeight: 'bold', fontSize: 14, border: 'none', borderRadius: 4, cursor: 'pointer', marginBottom: 16 }}>
             {loading ? 'Đang xử lý...' : 'Đăng nhập'}
           </button>
         </form>
-
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', margin: '16px 0' }}>
-          <div style={{ flex: 1, height: 1, background: '#ddd' }} />
-          <span style={{ margin: '0 12px', color: '#999', fontSize: 13 }}>Hoặc đăng nhập với</span>
-          <div style={{ flex: 1, height: 1, background: '#ddd' }} />
-        </div>
-
-        {/* Google Mock Button */}
-        <SocialButton
-          label="Đăng nhập với Google"
-          bgColor="#fff"
-          textColor="#333"
-          border="1px solid #ddd"
-          onClick={() => handleMockOAuth('google')}
-          icon={
-            <svg width="18" height="18" viewBox="0 0 48 48">
-              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-            </svg>
-          }
-        />
-
-        {/* Facebook Mock Button */}
-        <SocialButton
-          label="Đăng nhập với Facebook"
-          bgColor="#1877F2"
-          textColor="#fff"
-          onClick={() => handleMockOAuth('facebook')}
-          icon={
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-              <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3l-.5 3H13v6.95c5.05-.5 9-4.76 9-9.95z" />
-            </svg>
-          }
-        />
 
         <p style={{ textAlign: 'center', fontSize: 13, marginTop: 12 }}>
           Chưa có tài khoản? <Link to="/register" style={{ color: '#000', fontWeight: 'bold' }}>Đăng ký ngay</Link>

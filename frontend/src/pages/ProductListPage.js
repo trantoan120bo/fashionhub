@@ -37,8 +37,8 @@ function ProductListPage() {
 
   const updateParam = (key, value) => {
     const p = new URLSearchParams(searchParams);
-    if (value) p.set(key, value); else p.delete(key);
-    p.set('page', '1');
+    if (value) p.set(key, String(value)); else p.delete(key);
+    if (key !== 'page') p.set('page', '1'); // reset page khi đổi filter, không reset khi đổi page
     setSearchParams(p);
   };
 

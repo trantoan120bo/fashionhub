@@ -5,6 +5,7 @@ export const getSuspiciousUsers = () => api.get('/users/suspicious');
 export const getUserById = (id) => api.get(`/users/${id}`);
 export const getUserOrders = (id) => api.get(`/users/${id}/orders`);
 export const updateUserRole = (id, role) => api.patch(`/users/${id}/role`, { role });
+export const updateUserStatus = (id, status) => api.patch(`/users/${id}/status`, { status });
 export const banUser = (id) => api.post(`/users/${id}/ban`);
 export const unbanUser = (id) => api.post(`/users/${id}/unban`);
 export const resetCancelCount = (id) => api.post(`/users/${id}/reset-cancel`);

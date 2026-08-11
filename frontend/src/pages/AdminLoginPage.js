@@ -9,20 +9,32 @@ function AdminLoginPage() {
     const [form, setForm] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true); setError('');
+
+        // Trim input
+        const email = form.email.trim().toLowerCase();
+        const password = form.password.trim();
+
+        if (!email || !password) {
+            setError('Vui lòng nhập đầy đủ email và mật khẩu');
+            setLoading(false);
+            return;
+        }
+
         try {
-            const res = await login(form.email, form.password);
+            const res = await login(email, password);
             if (res.data.user.role !== 'admin') {
                 setError('Bạn không có quyền truy cập khu vực Admin');
                 return;
             }
             loginUser(res.data.token, res.data.user);
-            navigate('/admin/products');
+            navigate('/admin/orders');
         } catch (err) {
-            setError(err.response?.data?.message || 'Đăng nhập thất bại');
+            setError(err.response?.data?.message || 'Tài khoản hoặc mật khẩu quản trị không chính xác');
         } finally {
             setLoading(false);
         }
@@ -48,29 +60,78 @@ function AdminLoginPage() {
                     <p style={{ color: '#666', fontSize: 13, marginTop: 8 }}>Vui lòng đăng nhập quyền quản trị</p>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                {error && (
+                    <div style={{
+                        background: '#fdf2f2',
+                        border: '1px solid #f8b4b4',
+                        color: '#9b1c1c',
+                        padding: '12px 14px',
+                        borderRadius: 6,
+                        fontSize: 13,
+                        marginBottom: 20,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10
+                    }}>
+                        <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+                        <span style={{ lineHeight: 1.4 }}>{error}</span>
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} autoComplete="off">
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 8 }}>Email Quản Trị</label>
                         <input
-                            type="email"
+                            type="text"
                             value={form.email}
                             onChange={(e) => setForm({ ...form, email: e.target.value })}
                             style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }}
-                            placeholder="admin@fashionhub.com"
+                            autoComplete="off"
                         />
                     </div>
                     <div style={{ marginBottom: 24 }}>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 'bold', marginBottom: 8 }}>Mật Khẩu</label>
-                        <input
-                            type="password"
-                            value={form.password}
-                            onChange={(e) => setForm({ ...form, password: e.target.value })}
-                            style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }}
-                            placeholder="••••••••"
-                        />
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={form.password}
+                                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                                style={{ width: '100%', padding: '12px 40px 12px 12px', border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }}
+                                autoComplete="new-password"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                                style={{
+                                    position: 'absolute',
+                                    right: 10,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    padding: 4,
+                                    color: '#666',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                {showPassword ? (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                ) : (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
                     </div>
-
-                    {error && <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>{error}</p>}
 
                     <button
                         type="submit"

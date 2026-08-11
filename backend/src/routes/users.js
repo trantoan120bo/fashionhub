@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const {
     getAllUsers, getSuspiciousUsers,
-    banUser, unbanUser, resetCancelCount,
+    banUser, unbanUser, resetCancelCount, updateUserStatus,
     getUserById, updateUserRole, deleteUser, getUserOrders
 } = require('../controllers/userController');
 const { authenticate, isAdmin } = require('../middlewares/auth');
@@ -12,6 +12,7 @@ router.get('/suspicious', authenticate, isAdmin, getSuspiciousUsers);
 router.get('/:id', authenticate, isAdmin, getUserById);
 router.get('/:id/orders', authenticate, isAdmin, getUserOrders);
 router.patch('/:id/role', authenticate, isAdmin, updateUserRole);
+router.patch('/:id/status', authenticate, isAdmin, updateUserStatus);
 router.post('/:id/ban', authenticate, isAdmin, banUser);
 router.post('/:id/unban', authenticate, isAdmin, unbanUser);
 router.post('/:id/reset-cancel', authenticate, isAdmin, resetCancelCount);

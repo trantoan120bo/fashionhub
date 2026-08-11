@@ -13,6 +13,7 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('customer', 'admin')) DEFAULT 'customer',
     cancel_count INT NOT NULL DEFAULT 0, -- Số lần bom hàng
+    phone VARCHAR(15) NULL,              -- Số điện thoại
     is_banned BIT NOT NULL DEFAULT 0, -- 1 = bị cấm vĩnh viễn
     created_at DATETIME2 DEFAULT GETDATE (),
     updated_at DATETIME2 DEFAULT GETDATE ()
@@ -63,6 +64,10 @@ CREATE TABLE orders (
     address NVARCHAR (MAX) NOT NULL,
     note NVARCHAR (MAX),
     total_amount DECIMAL(12, 2) NOT NULL,
+    shipping_fee DECIMAL(12, 2) DEFAULT 0,
+    lat FLOAT NULL,
+    lng FLOAT NULL,
+    distance_km DECIMAL(6, 2) NULL,
     status VARCHAR(20) NOT NULL CHECK (
         status IN (
             'pending',

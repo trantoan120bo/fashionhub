@@ -8,6 +8,9 @@ exports.authenticate = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded.id || isNaN(Number(decoded.id))) {
+      return res.status(401).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+    }
     req.user = decoded;
     next();
   } catch {
