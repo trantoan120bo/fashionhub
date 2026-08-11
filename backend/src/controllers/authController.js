@@ -102,7 +102,7 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'fashionhub_secret_key_2026',
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
