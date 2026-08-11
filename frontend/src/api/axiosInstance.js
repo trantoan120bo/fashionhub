@@ -1,9 +1,17 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
+  if (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.startsWith('http')) {
+    if (!process.env.REACT_APP_API_URL.includes('localhost') && !process.env.REACT_APP_API_URL.includes('127.0.0.1')) {
+      return process.env.REACT_APP_API_URL;
+    }
+  }
   let url = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-  if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    url = url.replace('localhost', window.location.hostname).replace('127.0.0.1', window.location.hostname);
+  if (typeof window !== 'undefined' && window.location.hostname) {
+    const hn = window.location.hostname;
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(hn)) {
+      url = url.replace('localhost', hn).replace('127.0.0.1', hn);
+    }
   }
   return url;
 };
